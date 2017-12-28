@@ -220,12 +220,15 @@ function! s:common_sink(action, lines) abort
     let autochdir = &autochdir
     set noautochdir
     for item in a:lines
-      if empty
-        execute 'e' s:escape(item)
-        let empty = 0
-      else
+      "HACK: do not run `edit` command if buffer is empty as it ignores fzf_action 
+      "have no idea why it is done in that way
+
+      "if empty
+        "execute 'e' s:escape(item)
+        "let empty = 0
+      "else
         call s:open(Cmd, item)
-      endif
+      "endif
       if !has('patch-8.0.0177') && !has('nvim-0.2') && exists('#BufEnter')
             \ && isdirectory(item)
         doautocmd BufEnter
