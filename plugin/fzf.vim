@@ -200,14 +200,14 @@ function! s:open(cmd, target)
   execute a:cmd s:escape(a:target)
 endfunction
 
-function! s:common_sink(action, lines) abort
+function! s:common_sink(dict, action, lines) abort
   if len(a:lines) < 2
     return
   endif
   let key = remove(a:lines, 0)
   let Cmd = get(a:action, key, 'e')
   if type(Cmd) == type(function('call'))
-    return Cmd(a:lines)
+    return Cmd(a:dict, a:lines)
   endif
   if len(a:lines) > 1
     augroup fzf_swap
@@ -310,7 +310,7 @@ function! fzf#wrap(...)
   endif
 
   " Colors: g:fzf_colors
-  let opts.options = s:defaults() .' '. s:evaluate_opts(get(opts, 'options', ''))
+  let opts.options = s:defaults() .' '. s:evaluate_opts(get(opts, 'options', '')) .' '.$FZF_DEFAULT_OPTS
 
   " History: g:fzf_history_dir
   if len(name) && len(get(g:, 'fzf_history_dir', ''))
@@ -327,7 +327,7 @@ function! fzf#wrap(...)
     let opts._action = get(g:, 'fzf_action', s:default_action)
     let opts.options .= ' --expect='.join(keys(opts._action), ',')
     function! opts.sink(lines) abort
-      return s:common_sink(self._action, a:lines)
+      return s:common_sink(self, self._action, a:lines)
     endfunction
     let opts['sink*'] = remove(opts, 'sink')
   endif
@@ -747,6 +747,18 @@ function! s:callback(dict, lines) abort
   endif
 
   try
+    " handle fzf_action, needed for chain keybinding handling
+    let action = get(a:dict, '_action')
+    if !empty(action)
+      let key = get(a:lines, 0)
+      let Cmd = get(action, key)
+
+      if type(Cmd) == type(function('call'))
+        let key = remove(a:lines, 0)
+        return Cmd(a:dict, a:lines)
+      endif
+    endif
+
     if has_key(a:dict, 'sink')
       for line in a:lines
         if type(a:dict.sink) == 2
@@ -756,6 +768,7 @@ function! s:callback(dict, lines) abort
         endif
       endfor
     endif
+
     if has_key(a:dict, 'sink*')
       call a:dict['sink*'](a:lines)
     endif
